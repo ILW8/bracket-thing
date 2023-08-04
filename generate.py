@@ -19,7 +19,8 @@ def create_node(pl, w):  # create a node with the highest avaiable id and append
     return node_id
 
 
-def init_finals():  # create an initial bracket, assuming 4 players and then hide as needed, DONT change the order of creation!
+# create an initial bracket, assuming 4 players and then hide as needed, DONT change the order of creation!
+def init_finals():
     a = create_node([1, 2], True)
     b = create_node([1, 2], True)
     g.add_edge(b, a)
