@@ -15,6 +15,8 @@ loser_matrix = [[2], [4, 3]]
 
 */
 
+import {Transaction} from "typeorm";
+
 const PLAYER_COUNT = 16;
 
 let players: number[] = [...Array(PLAYER_COUNT).keys()];
@@ -133,4 +135,74 @@ function filterBySeed(maxSeed: number) {
 }
 
 
-let a = new MatchNode(120, [1], false);
+// def create_winners(max_player):  # create the winners brackets
+//     global winner_bracket, loser_matrix
+//     exp = 2
+//     current_limit = 4
+//     while current_limit < max_player:
+//         exp = exp + 1
+//         current_limit = 2 ** exp
+//         active_players = [i for i in range(1, current_limit + 1)]
+//         a = active_players[:len(active_players) // 2]
+//         b = active_players[len(active_players) // 2:]
+//         b.reverse()
+//         match_pairings = list(zip(a, b))
+//         latest_depth_list = winner_bracket[current_limit // 2 // 2 * -1:]  # this way we only index winners
+//         loser_subarr = []
+//         for node_id in latest_depth_list:
+//             for match in match_pairings:
+//                 if any(x in list(match) for x in g.nodes[node_id]["players"]):  # if they share any members, add an edge
+//                     loser_subarr.append(match[1])
+//                     id = create_node(list(match), True)
+//                     g.add_edge(id, node_id)
+//
+//         loser_matrix.append(loser_subarr)
+
+function zip<TypeLeft, TypeRight>(left: TypeLeft[], right: TypeRight[]) {
+    return left.map((element, idx) => [element, right[idx]]);
+}
+
+function intDiv(numerator: number, denominator: number) : number {
+    return Math.floor(numerator/denominator);
+}
+
+/**
+ * Builds the winner bracket
+ * @param playerCount how many players/teams in the bracket
+ */
+function buildWinners(playerCount: number) {
+    let exponent = 2;
+    let currentLimit = 4;
+
+    while (currentLimit < playerCount) {
+        exponent++;
+        currentLimit = Math.pow(2, exponent);
+        let activePlayers = [...Array(currentLimit).keys()].map(n => n+1);
+
+        let firstHalfPlayers = activePlayers.slice(0, Math.floor(activePlayers.length / 2));
+        let secondHalfPlayers = activePlayers.slice(Math.floor(activePlayers.length / 2));
+        secondHalfPlayers.reverse();
+
+        let matchPairings = zip<number, number>(firstHalfPlayers, secondHalfPlayers);
+        let latestDepthList = winnerBracketNodes.slice(intDiv(intDiv(currentLimit, 2), 2) * -1)
+        let loserSubArray: number[] = []; // what are these names
+
+        // UGLYYYY
+        for (const node of latestDepthList) {
+            for (const match of matchPairings) {
+                for (const player of node.players){
+                    if (match.includes(player)) {
+                        loserSubArray.push(match[1]);
+                        let id = makeNode(match, true);
+                        MatchNode.makeDirectedEdge(id, node.ID);
+                    }
+                }
+            }
+        }
+
+        losersMatrix.push(loserSubArray);
+    }
+
+
+
+}
