@@ -23,6 +23,8 @@ let players: number[] = [...Array(PLAYER_COUNT).keys()];
 
 // contains node IDs
 let nodesMap: { [key: number]: MatchNode } = {};
+let nodeDegrees: { [key: number]: number } = {};
+
 let allNodes: MatchNode[] = [];
 let winnerBracketNodes: MatchNode[] = [];
 let loserBracketNodes: MatchNode[] = [];
@@ -42,6 +44,8 @@ class MatchNode {
     public static makeDirectedEdge(parentNodeID: number, childNodeID: number) {  // for readability purposes
         // childNode.parent = parentNode;
         nodesMap[childNodeID].parent = nodesMap[parentNodeID];
+        nodeDegrees[childNodeID] = (nodeDegrees[childNodeID] ?? 0) + 1;
+        nodeDegrees[parentNodeID] = (nodeDegrees[parentNodeID] ?? 0) + 1;
     }
 
 
@@ -162,8 +166,8 @@ function zip<TypeLeft, TypeRight>(left: TypeLeft[], right: TypeRight[]) {
     return left.map((element, idx) => [element, right[idx]]);
 }
 
-function intDiv(numerator: number, denominator: number) : number {
-    return Math.floor(numerator/denominator);
+function intDiv(numerator: number, denominator: number): number {
+    return Math.floor(numerator / denominator);
 }
 
 /**
@@ -177,7 +181,7 @@ function buildWinners(playerCount: number) {
     while (currentLimit < playerCount) {
         exponent++;
         currentLimit = Math.pow(2, exponent);
-        let activePlayers = [...Array(currentLimit).keys()].map(n => n+1);
+        let activePlayers = [...Array(currentLimit).keys()].map(n => n + 1);
 
         let firstHalfPlayers = activePlayers.slice(0, Math.floor(activePlayers.length / 2));
         let secondHalfPlayers = activePlayers.slice(Math.floor(activePlayers.length / 2));
@@ -190,7 +194,7 @@ function buildWinners(playerCount: number) {
         // UGLYYYY
         for (const node of latestDepthList) {
             for (const match of matchPairings) {
-                for (const player of node.players){
+                for (const player of node.players) {
                     if (match.includes(player)) {
                         loserSubArray.push(match[1]);
                         let id = makeNode(match, true);
@@ -204,5 +208,193 @@ function buildWinners(playerCount: number) {
     }
 
 
+}
 
+// def find_first_occ(player, bracket):  # wtf is occ?
+//     for id in bracket:
+//         try:
+//             if player in g.nodes[id]["players"]:
+//                 return id
+//         except:  # WTF IS THIS
+//             continue
+
+// assuming this is guaranteed to return something?
+function findFirstOcc(playerID: number, bracket: MatchNode[]): number {
+    for (const match of bracket) {
+        if (match.players.includes(playerID)) {
+            return match.ID;
+        }
+    }
+}
+
+
+// def link_stragglers():
+//     for node in g.nodes:
+//         if not g.nodes[node]["is_winner"] and g.degree[node] < 3:
+//             if g.degree[node] == 2:
+//                 g.add_edge(find_first_occ(g.nodes[node]["players"][1], winner_bracket), node)
+//             elif g.degree[node] == 1:
+//                 g.add_edge(find_first_occ(g.nodes[node]["players"][0], winner_bracket), node)
+//                 g.add_edge(find_first_occ(g.nodes[node]["players"][1], winner_bracket), node)
+
+function linkStragglers() {
+    for (const node of allNodes) {
+        if (node.isWinner && nodeDegrees[node.ID] < 3) {
+            MatchNode.makeDirectedEdge(findFirstOcc(node.players[1], winnerBracketNodes), node.ID);
+
+            if (nodeDegrees[node.ID] == 2)
+                continue;
+
+            MatchNode.makeDirectedEdge(findFirstOcc(node.players[0], winnerBracketNodes), node.ID);
+        }
+    }
+}
+
+
+// def make_cont_match(pairings, new_n, limit, max_p, bracket, e):
+//     # continued section from previous loser matches
+//     pairings[0].reverse()
+//     players = pairings.pop(0)
+//     cont_node = create_node(players, False)
+//     g.add_edge(cont_node, new_n)
+//     if limit >= max_p:  # if this is the final bracket limit
+//         linking_winner_matches = []
+//         for player in players:
+//             linking_winner_matches.append(find_first_occ(player, bracket))
+//         for link in linking_winner_matches:
+//             g.add_edge(link, cont_node)
+
+function makeContMatch(pairings: number[][], newNode: number, limit: number, maxPlayers: number, bracket: MatchNode[]) {
+    pairings[0].reverse();
+    players = pairings.shift();
+    let contNodeID = makeNode(players, false);
+    MatchNode.makeDirectedEdge(contNodeID, newNode);
+
+    if (limit >= maxPlayers) { // "if this is the final bracket limit"
+        let linkingWinnerMatches: number[] = [];
+        for (const player of players) {
+            linkingWinnerMatches.push(findFirstOcc(player, bracket));
+        }
+
+        for (const link of linkingWinnerMatches) {
+            MatchNode.makeDirectedEdge(link, contNodeID);
+        }
+    }
+}
+
+
+// def create_losers(max_player):
+//     global loser_bracket, loser_matrix, winner_bracket
+//     exp = 2
+//     current_limit = 4
+//     window = (0, 1)
+//     swap = False
+//     while current_limit < max_player:
+//         exp = exp + 1
+//         current_limit = 2 ** exp
+//         window = (window[0] + 1, window[1] + 1)
+//         match_pairings = []
+//         for x in range(0, len(loser_matrix[window[1]]), 2):
+//             match_pairings.append(list([loser_matrix[window[1]][x], loser_matrix[window[1]][x + 1]]))
+//
+//         split = len(loser_matrix[window[1]]) // 2
+//         cont_winners = [min(match) for match in match_pairings]
+//         if swap:
+//             cont_winners.reverse()
+//             match_pairings.reverse()
+//         start_idx = len(loser_bracket) - (split - 1)
+//         for i in range(start_idx, len(loser_bracket), 2):
+//             selected_node = loser_bracket[i]
+//             # do the left first
+//             linking_player = min(g.nodes[selected_node]["players"])
+//             carry_player = cont_winners.pop(0)
+//
+//             winner_node = find_first_occ(linking_player, winner_bracket)
+//             new_node = create_node([linking_player, carry_player], False)
+//             g.add_edge(new_node, selected_node)
+//             g.add_edge(winner_node, new_node)
+//
+//             make_cont_match(match_pairings, new_node, current_limit, max_player, winner_bracket, exp)
+//
+//             # now do the right
+//             linking_player = max(g.nodes[selected_node]["players"])
+//             carry_player = cont_winners.pop(0)
+//
+//             winner_node = find_first_occ(linking_player, winner_bracket)
+//             new_node = create_node([linking_player, carry_player], False)
+//             g.add_edge(new_node, selected_node)
+//             g.add_edge(winner_node, new_node)
+//
+//             make_cont_match(match_pairings, new_node, current_limit, max_player, winner_bracket, exp)
+//         swap = not swap
+
+function buildLosers(maxPlayers: number) {
+    let exponent = 2;
+    let currentLimit = 4;
+    let window = [0, 1];
+    let swap = false;
+
+    while (currentLimit < maxPlayers) {
+        exponent++;
+        currentLimit = Math.pow(2, exponent);
+
+        window = window.map(e => e + 1);
+        let matchPairings: number[][] = [];
+
+        for (let i = 0; i < losersMatrix[window[1]].length; i += 2) {
+            matchPairings.push([losersMatrix[window[1]][i], losersMatrix[window[1]][i + 1]]);
+        }
+
+        let split = intDiv(losersMatrix[window[1]].length, 2);
+
+        // expanded list comprehension
+        let contWinners: number[] = [];
+        for (const match of matchPairings) {
+            contWinners.push(Math.min(...match));
+        }
+
+        if (swap) {
+            contWinners.reverse();
+            matchPairings.reverse();
+        }
+
+        let startIndex = loserBracketNodes.length - (split - 1);
+        for (let i = startIndex; i < loserBracketNodes.length; i += 2) {
+
+            let selectedNode = loserBracketNodes[i];
+
+            const linkingPlayers = [Math.min(...selectedNode.players), Math.max(...selectedNode.players)];
+            for (const linkingPlayer of linkingPlayers) {
+                let carryPlayer = contWinners.shift();
+
+                let winnerNode = findFirstOcc(linkingPlayer, winnerBracketNodes);
+                let newNode = makeNode([linkingPlayer, carryPlayer], false);
+                MatchNode.makeDirectedEdge(newNode, selectedNode.ID);
+                MatchNode.makeDirectedEdge(winnerNode, newNode);
+
+                makeContMatch(matchPairings, newNode, currentLimit, maxPlayers, winnerBracketNodes);
+            }
+
+
+        }
+        swap = !swap;
+    }
+}
+
+
+createTreeRoot();
+buildWinners(players[-1]);
+buildLosers(players[-1]);
+filterBySeed(players[-1]);
+linkStragglers();
+
+
+// let winnerBracketNodes: MatchNode[] = [];
+// let loserBracketNodes: MatchNode[] = [];
+for (const match of winnerBracketNodes) {
+    console.log(match);
+}
+
+for (const match of loserBracketNodes) {
+    console.log(match);
 }
