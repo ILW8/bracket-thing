@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 
 g = nx.DiGraph()
-playerarr = [i for i in range(1, 31)]
+playerarr = [i + 1 for i in range(19)]
 winner_bracket = []
 loser_bracket = []
 loser_matrix = [[2], [4, 3]]
@@ -156,16 +156,20 @@ create_winners(playerarr[-1])
 create_losers(playerarr[-1])
 filter_nodes(playerarr[-1])
 link_stragglers()
-limits = plt.axis("off")
-options = {"edgecolors": "tab:gray", "node_size": 3000, "alpha": 0.9}
-labels = nx.get_node_attributes(g, 'players')
-color_map = []
-for node in g.nodes:
-    if g.nodes[node]["is_winner"] == True:
-        color_map.append("tab:blue")
-    else:
-        color_map.append("tab:red")
 
-pos = graphviz_layout(g, prog="dot")
-nx.draw_networkx(g, pos=pos, labels=labels, with_labels=True, node_shape='o', node_color=color_map, **options)
-plt.show()
+for node in g.nodes:
+    print(node)
+
+# limits = plt.axis("off")
+# options = {"edgecolors": "tab:gray", "node_size": 3000, "alpha": 0.9}
+# labels = nx.get_node_attributes(g, 'players')
+# color_map = []
+# for node in g.nodes:
+#     if g.nodes[node]["is_winner"] == True:
+#         color_map.append("tab:blue")
+#     else:
+#         color_map.append("tab:red")
+#
+# pos = graphviz_layout(g, prog="dot")
+# nx.draw_networkx(g, pos=pos, labels=labels, with_labels=True, node_shape='o', node_color=color_map, **options)
+# plt.show()

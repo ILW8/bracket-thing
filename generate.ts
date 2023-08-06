@@ -14,12 +14,9 @@ loser_bracket = []
 loser_matrix = [[2], [4, 3]]
 
 */
+const PLAYER_COUNT = 19;
 
-import {Transaction} from "typeorm";
-
-const PLAYER_COUNT = 16;
-
-let players: number[] = [...Array(PLAYER_COUNT).keys()];
+let players: number[] = [...Array(PLAYER_COUNT).keys()].map(playerID => playerID + 1);
 
 // contains node IDs
 let nodesMap: { [key: number]: MatchNode } = {};
@@ -53,6 +50,7 @@ class MatchNode {
 
 function makeNode(players: number[], isWinner: boolean) {
     const newNodeID = allNodes.length + 1;
+    console.log(newNodeID, players, isWinner);
     const newNode = new MatchNode(newNodeID, players, isWinner);
 
     (isWinner ? winnerBracketNodes : loserBracketNodes).push(newNode)
@@ -122,19 +120,30 @@ function filterBySeed(maxSeed: number) {
     //
     //     }
     // }
-    for (let idx = allNodes.length; idx > 0; idx--) {
-        if (allNodes[idx].players.some(playerSeed => playerSeed > maxSeed)) {
-            allNodes.splice(idx, 1); // remove element in-place
-
-            // remove edge to this node
-            for (const node of allNodes) {
-                if (node.parent == nodesMap[idx]) {
-                    node.parent = null;
-                }
+    const deleteList: number[] = [];
+    for (let idx = 0; idx > allNodes.length; idx++) {
+        for (const playerSeed of allNodes[idx].players) {
+            if (playerSeed > maxSeed) {
+                deleteList.push(playerSeed);
+                break;
             }
-
-            delete nodesMap[idx]; // remove from mapping
         }
+        // if (allNodes[idx].players.some(playerSeed => playerSeed > maxSeed)) {
+        //     deleteList.push(idx);
+        // }
+    }
+
+    for (const toDelete of deleteList) {
+        allNodes.splice(toDelete, 1); // remove element in-place
+
+        // remove edge to this node
+        for (const node of allNodes) {
+            if (node.parent == nodesMap[toDelete]) {
+                node.parent = null;
+            }
+        }
+
+        delete nodesMap[toDelete]; // remove from mapping
     }
 }
 
@@ -240,12 +249,11 @@ function findFirstOcc(playerID: number, bracket: MatchNode[]): number {
 function linkStragglers() {
     for (const node of allNodes) {
         if (node.isWinner && nodeDegrees[node.ID] < 3) {
+            if (nodeDegrees[node.ID] == 1)
+                MatchNode.makeDirectedEdge(findFirstOcc(node.players[0], winnerBracketNodes), node.ID);
+
             MatchNode.makeDirectedEdge(findFirstOcc(node.players[1], winnerBracketNodes), node.ID);
 
-            if (nodeDegrees[node.ID] == 2)
-                continue;
-
-            MatchNode.makeDirectedEdge(findFirstOcc(node.players[0], winnerBracketNodes), node.ID);
         }
     }
 }
@@ -339,8 +347,8 @@ function buildLosers(maxPlayers: number) {
         currentLimit = Math.pow(2, exponent);
 
         window = window.map(e => e + 1);
-        let matchPairings: number[][] = [];
 
+        let matchPairings: number[][] = [];
         for (let i = 0; i < losersMatrix[window[1]].length; i += 2) {
             matchPairings.push([losersMatrix[window[1]][i], losersMatrix[window[1]][i + 1]]);
         }
@@ -359,7 +367,8 @@ function buildLosers(maxPlayers: number) {
         }
 
         let startIndex = loserBracketNodes.length - (split - 1);
-        for (let i = startIndex; i < loserBracketNodes.length; i += 2) {
+        const startingLoserBracketNodesLength = loserBracketNodes.length;
+        for (let i = startIndex; i < startingLoserBracketNodesLength; i += 2) {
 
             let selectedNode = loserBracketNodes[i];
 
@@ -383,18 +392,7 @@ function buildLosers(maxPlayers: number) {
 
 
 createTreeRoot();
-buildWinners(players[-1]);
-buildLosers(players[-1]);
-filterBySeed(players[-1]);
+buildWinners(players.at(-1));
+buildLosers(players.at(-1));
+filterBySeed(players.at(-1));
 linkStragglers();
-
-
-// let winnerBracketNodes: MatchNode[] = [];
-// let loserBracketNodes: MatchNode[] = [];
-for (const match of winnerBracketNodes) {
-    console.log(match);
-}
-
-for (const match of loserBracketNodes) {
-    console.log(match);
-}
