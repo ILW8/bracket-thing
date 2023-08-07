@@ -42,9 +42,11 @@ def init_finals():
 def filter_nodes(max_player):  # remove all nodes which contain players above a certain maximum player
     delete_list = []
     for node in g.nodes:
+        print(node, g.nodes[node]["players"][0], g.nodes[node]["players"][1])
         for player in g.nodes[node]["players"]:
             if player > max_player:
                 delete_list.append(node)
+                break
     g.remove_nodes_from(delete_list)
 
 
@@ -84,6 +86,7 @@ def find_first_occ(player, bracket):
 def link_stragglers():
     for node in g.nodes:
         if not g.nodes[node]["is_winner"] and g.degree[node] < 3:
+            print(f"linking {find_first_occ(g.nodes[node]['players'][1], winner_bracket)} to {node}")
             if g.degree[node] == 2:
                 g.add_edge(find_first_occ(g.nodes[node]["players"][1], winner_bracket), node)
             elif g.degree[node] == 1:

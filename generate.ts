@@ -31,6 +31,7 @@ let losersMatrix: number[][] = [[2], [4, 3]];  // must initially be seeded with 
 // g.add_node(node_id, players=pl, is_winner=w)
 /**
  * these nodes are meant for use in a directed graph
+ * todo: use a graph lib instead of manually managing nodes and edges?
  */
 class MatchNode {
     public parent: MatchNode = null;
@@ -108,6 +109,7 @@ function createTreeRoot() {
 //         for player in g.nodes[node]["players"]:
 //             if player > max_player:
 //                 delete_list.append(node)
+//                 # missing break statement, original code has duplicates that was being silently handled by networkx
 //     g.remove_nodes_from(delete_list)
 /**
  *
@@ -120,30 +122,26 @@ function filterBySeed(maxSeed: number) {
     //
     //     }
     // }
-    const deleteList: number[] = [];
-    for (let idx = 0; idx > allNodes.length; idx++) {
+    // const deleteList: number[] = [];
+    const startIndex = allNodes.length - 1;
+    for (let idx = startIndex; idx > 0; idx--) {
+        console.log(idx + 1, allNodes[idx].players[0] ?? "?", allNodes[idx].players[1] ?? "?");
+
         for (const playerSeed of allNodes[idx].players) {
             if (playerSeed > maxSeed) {
-                deleteList.push(playerSeed);
+                allNodes.splice(idx, 1); // remove element in-place
+
+                // remove edge to this node
+                for (const node of allNodes) {
+                    if (node.parent == nodesMap[idx]) {
+                        node.parent = null;
+                    }
+                }
+
+                delete nodesMap[idx]; // remove from mapping
                 break;
             }
         }
-        // if (allNodes[idx].players.some(playerSeed => playerSeed > maxSeed)) {
-        //     deleteList.push(idx);
-        // }
-    }
-
-    for (const toDelete of deleteList) {
-        allNodes.splice(toDelete, 1); // remove element in-place
-
-        // remove edge to this node
-        for (const node of allNodes) {
-            if (node.parent == nodesMap[toDelete]) {
-                node.parent = null;
-            }
-        }
-
-        delete nodesMap[toDelete]; // remove from mapping
     }
 }
 
@@ -248,12 +246,12 @@ function findFirstOcc(playerID: number, bracket: MatchNode[]): number {
 
 function linkStragglers() {
     for (const node of allNodes) {
-        if (node.isWinner && nodeDegrees[node.ID] < 3) {
+        if (!node.isWinner && nodeDegrees[node.ID] < 3) {
             if (nodeDegrees[node.ID] == 1)
                 MatchNode.makeDirectedEdge(findFirstOcc(node.players[0], winnerBracketNodes), node.ID);
 
             MatchNode.makeDirectedEdge(findFirstOcc(node.players[1], winnerBracketNodes), node.ID);
-
+            // console.log(`linking ${findFirstOcc(node.players[1], winnerBracketNodes)} to ${node.ID}`);
         }
     }
 }
@@ -274,7 +272,7 @@ function linkStragglers() {
 
 function makeContMatch(pairings: number[][], newNode: number, limit: number, maxPlayers: number, bracket: MatchNode[]) {
     pairings[0].reverse();
-    players = pairings.shift();
+    let players = pairings.shift();  // shadow global scope `players` array
     let contNodeID = makeNode(players, false);
     MatchNode.makeDirectedEdge(contNodeID, newNode);
 
@@ -391,7 +389,7 @@ function buildLosers(maxPlayers: number) {
 }
 
 
-createTreeRoot();
+createTreeRoot(); // checked, OK
 buildWinners(players.at(-1));
 buildLosers(players.at(-1));
 filterBySeed(players.at(-1));
